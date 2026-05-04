@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SCI PLFA Soil Health Interpreter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sci-earth:      #3D2F1E;
+    --sci-clay:       #A8551F;
+    --sci-leaf:       #3F5C3A;
+    --sci-leaf-deep:  #2B4028;
+    --sci-moss:       #6B7F4B;
+    --sci-cream:      #F5EFE3;
+    --sci-sand:       #E6D5B2;
+    --sci-silt:       #BFAA85;
+    --sci-ink:        #1C1A16;
+    --sci-muted:      #6B6458;
+    --sci-line:       #D9CEB5;
+
+    --low-bg:         #FDE8E8;
+    --low-text:       #B91C1C;
+    --below-bg:       #FEF3C7;
+    --below-text:     #92400E;
+    --avg-bg:         #DBEAFE;
+    --avg-text:       #1E40AF;
+    --above-bg:       #D1FAE5;
+    --above-text:     #065F46;
+    --high-bg:        #EDE9FE;
+    --high-text:      #5B21B6;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: transparent;
+    color: var(--sci-ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 400;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 24px 40px;
+  }
+
+  .page-header {
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--sci-line);
+    padding-bottom: 20px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--sci-clay);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 22px;
+    height: 1px;
+    background: var(--sci-clay);
+  }
+  .page-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: clamp(26px, 4vw, 40px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--sci-earth);
+    margin-bottom: 8px;
+  }
+  .page-title em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--sci-leaf-deep);
+  }
+  .page-sub {
+    font-size: 13px;
+    color: var(--sci-muted);
+    max-width: 580px;
+  }
+
+  .inputs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 560px) {
+    .inputs-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sci-muted);
+  }
+  .field input {
+    width: 100%;
+    padding: 10px 13px;
+    border: 1.5px solid var(--sci-line);
+    border-radius: 6px;
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--sci-earth);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    -moz-appearance: textfield;
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .field input:focus {
+    border-color: var(--sci-leaf);
+    box-shadow: 0 0 0 3px rgba(63, 92, 58, 0.12);
+  }
+  .field input::placeholder { color: var(--sci-sand); }
+
+  .action-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .btn-analyze {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 26px;
+    background: var(--sci-leaf-deep);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.18s ease, transform 0.1s ease;
+  }
+  .btn-analyze:hover { background: var(--sci-leaf); }
+  .btn-analyze:active { transform: scale(0.98); }
+  .btn-reset {
+    background: none;
+    border: 1.5px solid var(--sci-line);
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sci-muted);
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .btn-reset:hover { border-color: var(--sci-silt); color: var(--sci-earth); }
+
+  .results-panel {
+    display: none;
+    flex-direction: column;
+    gap: 0;
+    border: 1.5px solid var(--sci-line);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .results-panel.visible { display: flex; }
+
+  .results-header {
+    background: var(--sci-leaf-deep);
+    color: #fff;
+    padding: 16px 24px;
+    display: grid;
+    grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+  .results-header span {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .results-header span:first-child { opacity: 1; font-size: 11px; }
+
+  .result-row {
+    display: grid;
+    grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--sci-line);
+    transition: background 0.15s ease;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-row:nth-child(even) { background: #FAFAF8; }
+  .result-row:hover { background: var(--sci-cream); }
+
+  .row-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--sci-earth);
+  }
+  .row-name small {
+    display: block;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--sci-muted);
+    margin-top: 1px;
+  }
+
+  .band-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: center;
+    min-width: 48px;
+  }
+  .band-chip.low    { background: var(--low-bg);   color: var(--low-text); }
+  .band-chip.below  { background: var(--below-bg);  color: var(--below-text); }
+  .band-chip.avg    { background: var(--avg-bg);    color: var(--avg-text); }
+  .band-chip.above  { background: var(--above-bg);  color: var(--above-text); }
+  .band-chip.high   { background: var(--high-bg);   color: var(--high-text); }
+
+  .entered-val {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--sci-earth);
+  }
+  .entered-val.dim {
+    color: var(--sci-silt);
+    font-size: 13px;
+    font-style: italic;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .summary-card {
+    display: none;
+    margin-top: 20px;
+    background: var(--sci-cream);
+    border: 1.5px solid var(--sci-line);
+    border-radius: 10px;
+    padding: 20px 24px;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .summary-card.visible { display: flex; }
+  .summary-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sci-leaf-deep);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .summary-icon svg { width: 20px; height: 20px; color: #fff; }
+  .summary-body {}
+  .summary-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--sci-clay);
+    margin-bottom: 5px;
+  }
+  .summary-text {
+    font-size: 13.5px;
+    color: var(--sci-earth);
+    line-height: 1.6;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .legend-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sci-muted);
+    margin-right: 4px;
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--sci-muted);
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-dot.low    { background: var(--low-text); }
+  .legend-dot.below  { background: var(--below-text); }
+  .legend-dot.avg    { background: var(--avg-text); }
+  .legend-dot.above  { background: var(--above-text); }
+  .legend-dot.high   { background: var(--high-text); }
+
+  @media (max-width: 640px) {
+    .results-header { display: none; }
+    .result-row {
+      grid-template-columns: 1fr 1fr;
+      padding: 14px 16px;
+      gap: 10px;
+    }
+    .page { padding: 20px 16px 32px; }
+    .action-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-header">
+    <div class="eyebrow">Soil Health Tool</div>
+    <h1 class="page-title">PLFA Soil Health <em>Interpreter</em></h1>
+    <p class="page-sub">Enter your PLFA (Phospholipid Fatty Acid) analysis results to see how each indicator compares to standard ranges and what it means for your soil's microbial community.</p>
+  </div>
+
+  <div class="inputs-grid">
+    <div class="field">
+      <label class="field-label" for="inp_tmb">Total Microbial Biomass</label>
+      <input type="number" id="inp_tmb" placeholder="e.g. 1800" step="1" min="0">
+    </div>
+    <div class="field">
+      <label class="field-label" for="inp_fgdi">Functional Group Diversity</label>
+      <input type="number" id="inp_fgdi" placeholder="e.g. 1.15" step="0.01" min="0">
+    </div>
+    <div class="field">
+      <label class="field-label" for="inp_bact">Total Bacteria %</label>
+      <input type="number" id="inp_bact" placeholder="e.g. 25" step="0.1" min="0">
+    </div>
+    <div class="field">
+      <label class="field-label" for="inp_fungi">Total Fungi %</label>
+      <input type="number" id="inp_fungi" placeholder="e.g. 4" step="0.1" min="0">
+    </div>
+    <div class="field">
+      <label class="field-label" for="inp_fb">Fungi:Bacteria Ratio</label>
+      <input type="number" id="inp_fb" placeholder="e.g. 0.15" step="0.01" min="0">
+    </div>
+    <div class="field">
+      <label class="field-label" for="inp_gp">Gram+:Gram− Ratio</label>
+      <input type="number" id="inp_gp" placeholder="e.g. 1.5" step="0.01" min="0">
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn-analyze" id="btnAnalyze">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Interpret Results
+    </button>
+    <button class="btn-reset" id="btnReset">Clear</button>
+  </div>
+
+  <div class="legend" id="legendRow" style="display:none;">
+    <span class="legend-label">Range:</span>
+    <span class="legend-item"><span class="legend-dot low"></span>Low</span>
+    <span class="legend-item"><span class="legend-dot below"></span>Below Avg</span>
+    <span class="legend-item"><span class="legend-dot avg"></span>Average</span>
+    <span class="legend-item"><span class="legend-dot above"></span>Above Avg</span>
+    <span class="legend-item"><span class="legend-dot high"></span>High</span>
+  </div>
+
+  <div class="results-panel" id="resultsPanel"></div>
+
+  <div class="summary-card" id="summaryCard">
+    <div class="summary-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v20"/><path d="M12 12C8 12 4 8 4 4c4 0 8 4 8 8z"/><path d="M12 14c4 0 8-4 8-8-4 0-8 4-8 8z"/>
+      </svg>
+    </div>
+    <div class="summary-body">
+      <div class="summary-label">Regenerative Insight</div>
+      <p class="summary-text" id="summaryText"></p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const INDICATORS = [
+  {
+    id: 'tmb',
+    name: 'Total Microbial Biomass',
+    unit: 'ng/g',
+    bands: [
+      { key: 'low',   label: '<1000',     test: v => v < 1000 },
+      { key: 'below', label: '1000–1500', test: v => v >= 1000 && v < 1500 },
+      { key: 'avg',   label: '1500–2000', test: v => v >= 1500 && v < 2000 },
+      { key: 'above', label: '2000–2500', test: v => v >= 2000 && v <= 2500 },
+      { key: 'high',  label: '>2500',     test: v => v > 2500 },
+    ],
+    insights: {
+      low:   'Very low microbial biomass signals a depleted soil food web. Aggressive biological restoration is needed — diverse cover crops, compost, and minimal soil disturbance are top priorities.',
+      below: 'Below average microbial biomass. Your soil biology is present but limited. Increasing organic inputs and living root diversity will support growth in the microbial community.',
+      avg:   'Moderate microbial biomass. Your soil food web is functional. Maintaining continuous living cover and diverse organic inputs will sustain and grow this population.',
+      above: 'Good microbial biomass — a rich community of organisms is actively cycling nutrients and building soil structure. Your regenerative practices are paying off.',
+      high:  'Exceptional microbial biomass. This reflects a highly active, diverse soil food web capable of driving nutrient cycling, disease suppression, and aggregate stability.',
+    }
+  },
+  {
+    id: 'fgdi',
+    name: 'Functional Group Diversity Index',
+    unit: '',
+    bands: [
+      { key: 'low',   label: '<1.0',    test: v => v < 1.0 },
+      { key: 'below', label: '1.0–1.1', test: v => v >= 1.0 && v < 1.1 },
+      { key: 'avg',   label: '1.1–1.2', test: v => v >= 1.1 && v < 1.2 },
+      { key: 'above', label: '1.2–1.3', test: v => v >= 1.2 && v <= 1.3 },
+      { key: 'high',  label: '>1.3',    test: v => v > 1.3 },
+    ],
+    insights: {
+      low:   'Low functional diversity — your microbial community is lacking key groups needed for balanced nutrient cycling. Diverse cover crop mixes and reduced disturbance are essential.',
+      below: 'Below average diversity across microbial functional groups. Introducing greater plant species diversity above ground drives microbial diversity below ground.',
+      avg:   'Moderate functional diversity. Your microbial community includes a reasonable mix of groups. More diverse rotations and cover crops will continue to improve this index.',
+      above: 'Good functional group diversity — a broad range of microbial guilds are represented, enabling more complete and resilient nutrient cycling.',
+      high:  'Excellent functional diversity. A rich mix of microbial groups means your soil is capable of performing many biological functions simultaneously — a hallmark of regenerative soils.',
+    }
+  },
+  {
+    id: 'bact',
+    name: 'Total Bacteria',
+    unit: '%',
+    bands: [
+      { key: 'low',   label: '<15',  test: v => v < 15 },
+      { key: 'below', label: '15–20', test: v => v >= 15 && v < 20 },
+      { key: 'avg',   label: '20–30', test: v => v >= 20 && v < 30 },
+      { key: 'above', label: '30–40', test: v => v >= 30 && v <= 40 },
+      { key: 'high',  label: '>40',  test: v => v > 40 },
+    ],
+    insights: {
+      low:   'Very low bacterial populations limit nutrient mineralization and cycling. Feed soil bacteria with fresh, diverse organic matter and residues.',
+      below: 'Below average bacterial presence. Bacteria are the primary drivers of decomposition and nitrogen cycling — building their populations starts with organic inputs and living roots.',
+      avg:   'Solid bacterial community. Bacteria are actively supporting nutrient cycling in your system. Paired with good fungal populations, this supports a balanced food web.',
+      above: 'Strong bacterial community. High bacterial activity supports rapid nutrient cycling, which is especially beneficial for annual crop systems.',
+      high:  'Very high bacterial percentage. This is typical of highly productive soils with good organic matter inputs. Monitor the fungi:bacteria ratio to ensure balance.',
+    }
+  },
+  {
+    id: 'fungi',
+    name: 'Total Fungi',
+    unit: '%',
+    bands: [
+      { key: 'low',   label: '<1',  test: v => v < 1 },
+      { key: 'below', label: '1–3', test: v => v >= 1 && v < 3 },
+      { key: 'avg',   label: '3–5', test: v => v >= 3 && v < 5 },
+      { key: 'above', label: '5–10', test: v => v >= 5 && v <= 10 },
+      { key: 'high',  label: '>10', test: v => v > 10 },
+    ],
+    insights: {
+      low:   'Very low fungal populations limit nutrient transport, organic matter breakdown, and aggregate formation. Reducing tillage and adding fungal-friendly residues (high-carbon cover crops) helps.',
+      below: 'Below average fungal presence. Fungi are critical for phosphorus access, water transport, and building stable soil aggregates. Minimize tillage and keep living roots in the soil.',
+      avg:   'Moderate fungal populations. Fungi are present and contributing to soil health. Perennial plants, no-till, and high-carbon residues will continue to build fungal networks.',
+      above: 'Good fungal populations — mycelial networks are extending plant nutrient access and building stable soil aggregates. This is a positive sign of a maturing soil ecosystem.',
+      high:  'Excellent fungal presence. A robust fungal community is a hallmark of biologically mature soils. These networks dramatically extend plant access to water and nutrients.',
+    }
+  },
+  {
+    id: 'fb',
+    name: 'Fungi:Bacteria Ratio',
+    unit: '',
+    bands: [
+      { key: 'low',   label: '<0.05',    test: v => v < 0.05 },
+      { key: 'below', label: '0.05–0.1', test: v => v >= 0.05 && v < 0.1 },
+      { key: 'avg',   label: '0.1–0.2',  test: v => v >= 0.1 && v < 0.2 },
+      { key: 'above', label: '0.2–0.3',  test: v => v >= 0.2 && v <= 0.3 },
+      { key: 'high',  label: '>0.3',     test: v => v > 0.3 },
+    ],
+    insights: {
+      low:   'Strongly bacteria-dominated — fungi are nearly absent. This often reflects intensive tillage or bare soil. Reducing disturbance and adding perennials or high-carbon cover crops is key.',
+      below: 'Bacterial-dominated food web. Fungi are present but limited. Shifting toward more fungal-friendly management (no-till, cover crops, diverse residues) will improve this ratio over time.',
+      avg:   'Moderately balanced fungi-to-bacteria ratio. Your soil food web is developing good balance. This ratio supports efficient cycling of both labile and stable organic matter.',
+      above: 'Good fungi:bacteria balance. A higher fungal proportion reflects a more mature, stable soil ecosystem capable of cycling complex organic matter and building long-term carbon.',
+      high:  'Fungal-dominant food web — characteristic of mature, undisturbed or perennial systems. This supports excellent aggregate stability and long-term organic matter accumulation.',
+    }
+  },
+  {
+    id: 'gp',
+    name: 'Gram+:Gram− Ratio',
+    unit: '',
+    bands: [
+      { key: 'low',   label: '<0.5',  test: v => v < 0.5 },
+      { key: 'below', label: '0.5–1.0', test: v => v >= 0.5 && v < 1.0 },
+      { key: 'avg',   label: '1.0–2.0', test: v => v >= 1.0 && v < 2.0 },
+      { key: 'above', label: '2.0–4.0', test: v => v >= 2.0 && v <= 4.0 },
+      { key: 'high',  label: '>4.0',  test: v => v > 4.0 },
+    ],
+    insights: {
+      low:   'Low Gram+:Gram− ratio suggests Gram-negative bacteria are dominant. This can indicate high-nutrient or disturbed conditions. Fresh organic inputs and reduced compaction can help rebalance.',
+      below: 'Slightly Gram-negative dominant. This ratio can shift with organic matter quality and soil moisture. Monitor alongside other indicators for a full picture.',
+      avg:   'Balanced Gram+:Gram− ratio. Both bacterial groups are well-represented, indicating a diverse bacterial community capable of cycling a range of organic substrates.',
+      above: 'Gram-positive bacteria are more dominant — these organisms specialize in breaking down more complex, stable organic compounds and are associated with mature, stable soils.',
+      high:  'Strongly Gram-positive dominant. These bacteria are key decomposers of recalcitrant organic matter. Combined with a healthy fungal community, this signals a highly mature soil ecosystem.',
+    }
+  }
+];
+
+const bandOrder = ['low', 'below', 'avg', 'above', 'high'];
+const bandLabels = { low: 'Low', below: 'Below Avg', avg: 'Average', above: 'Above Avg', high: 'High' };
+
+function classifyValue(indicator, value) {
+  for (const band of indicator.bands) {
+    if (band.test(value)) return band.key;
+  }
+  return null;
+}
+
+function buildRow(indicator, rawVal) {
+  const hasValue = rawVal !== '' && rawVal !== null && !isNaN(rawVal) && rawVal.toString().trim() !== '';
+  const numVal = hasValue ? parseFloat(rawVal) : null;
+  const bandKey = hasValue ? classifyValue(indicator, numVal) : null;
+
+  const row = document.createElement('div');
+  row.className = 'result-row';
+
+  const nameCell = document.createElement('div');
+  nameCell.className = 'row-name';
+  nameCell.innerHTML = indicator.name + (indicator.unit ? `<small>${indicator.unit}</small>` : '');
+  row.appendChild(nameCell);
+
+  const valCell = document.createElement('div');
+  if (hasValue) {
+    valCell.className = 'entered-val';
+    valCell.textContent = numVal % 1 === 0 ? numVal : parseFloat(numVal.toFixed(3));
+  } else {
+    valCell.className = 'entered-val dim';
+    valCell.textContent = '—';
+  }
+  row.appendChild(valCell);
+
+  for (const bk of bandOrder) {
+    const cell = document.createElement('div');
+    const bandDef = indicator.bands.find(b => b.key === bk);
+    if (hasValue && bandKey === bk) {
+      cell.innerHTML = `<span class="band-chip ${bk}">${bandLabels[bk]}</span>`;
+    } else {
+      cell.style.fontSize = '11px';
+      cell.style.color = hasValue ? 'var(--sci-silt)' : 'var(--sci-line)';
+      cell.textContent = bandDef ? bandDef.label : '';
+    }
+    row.appendChild(cell);
+  }
+
+  return { row, bandKey, indicator };
+}
+
+function buildSummary(results) {
+  const entered = results.filter(r => r.bandKey !== null);
+  if (entered.length === 0) return null;
+
+  const counts = {};
+  for (const bk of bandOrder) counts[bk] = 0;
+  for (const r of entered) counts[r.bandKey]++;
+
+  const lowCount  = counts.low + counts.below;
+  const highCount = counts.above + counts.high;
+  const weakest   = results.find(r => r.bandKey === 'low') || results.find(r => r.bandKey === 'below');
+  const strongest = results.find(r => r.bandKey === 'high') || results.find(r => r.bandKey === 'above');
+
+  if (lowCount > highCount + counts.avg) {
+    return `Your PLFA results indicate a microbial community that is significantly underdeveloped. Prioritize reducing soil disturbance, keeping living roots in the ground year-round, and introducing diverse cover crop mixes to feed a broader range of microbial functional groups. Biological recovery is possible — it starts with protecting what's there and feeding it consistently.`;
+  } else if (lowCount === 0 && highCount >= entered.length - 1) {
+    return `Outstanding microbial community across the board. Your PLFA profile reflects a highly diverse, abundant, and functionally active soil food web. The regenerative practices driving these results are working — continue building on this biological foundation.`;
+  } else if (highCount >= lowCount) {
+    return `Your soil microbial community is performing well overall. ${strongest ? `Strong ${strongest.indicator.name} is a real asset to your system. ` : ''}${weakest ? `Directing additional focus to ${weakest.indicator.name} will help round out your microbial profile.` : 'Keep layering regenerative practices to maintain momentum.'}`;
+  } else {
+    return `A mixed microbial profile with clear opportunity. ${weakest ? `${weakest.indicator.name} stands out as a priority area. ` : ''}Improving microbial biomass and diversity often requires a systems approach — diverse plants, reduced disturbance, and consistent organic inputs working together over multiple seasons.`;
+  }
+}
+
+function analyze() {
+  const panel       = document.getElementById('resultsPanel');
+  const summaryCard = document.getElementById('summaryCard');
+  const summaryText = document.getElementById('summaryText');
+  const legendRow   = document.getElementById('legendRow');
+
+  panel.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'results-header';
+  header.innerHTML = '<span>Indicator</span><span>Your Value</span><span>Low</span><span>Below Avg</span><span>Average</span><span>Above Avg / High</span>';
+  panel.appendChild(header);
+
+  const resultData = [];
+  for (const ind of INDICATORS) {
+    const input = document.getElementById('inp_' + ind.id);
+    const rawVal = input ? input.value.trim() : '';
+    const { row, bandKey, indicator } = buildRow(ind, rawVal);
+    panel.appendChild(row);
+    resultData.push({ indicator, bandKey });
+  }
+
+  const summary = buildSummary(resultData);
+  panel.classList.add('visible');
+  legendRow.style.display = 'flex';
+
+  if (summary) {
+    summaryText.textContent = summary;
+    summaryCard.classList.add('visible');
+  } else {
+    summaryCard.classList.remove('visible');
+  }
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function resetAll() {
+  INDICATORS.forEach(ind => {
+    const input = document.getElementById('inp_' + ind.id);
+    if (input) input.value = '';
+  });
+  const panel = document.getElementById('resultsPanel');
+  panel.classList.remove('visible');
+  panel.innerHTML = '';
+  document.getElementById('summaryCard').classList.remove('visible');
+  document.getElementById('legendRow').style.display = 'none';
+}
+
+document.getElementById('btnAnalyze').addEventListener('click', analyze);
+document.getElementById('btnReset').addEventListener('click', resetAll);
+document.addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
+</script>
+</body>
+</html>
