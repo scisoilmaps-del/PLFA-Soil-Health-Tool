@@ -329,6 +329,62 @@
   .legend-dot.above  { background: var(--above-text); }
   .legend-dot.high   { background: var(--high-text); }
 
+
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sci-clay);
+    margin: 0 0 10px;
+  }
+  .farm-card {
+    background: #fff;
+    border: 1.5px solid var(--sci-line);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .farm-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .field input[type="text"],
+  .field input[type="date"] {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .btn-pdf {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    background: #fff;
+    color: var(--sci-leaf-deep);
+    border: 1.5px solid var(--sci-leaf-deep);
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.18s ease, transform 0.1s ease;
+  }
+  .btn-pdf.visible { display: inline-flex; }
+  .btn-pdf:hover { background: var(--sci-cream); }
+  .btn-pdf:active { transform: scale(0.98); }
+  .notice {
+    display: none;
+    margin: -12px 0 20px;
+    font-size: 12px;
+    color: var(--sci-muted);
+  }
+  .notice.visible { display: block; }
+
   @media (max-width: 640px) {
     .results-header { display: none; }
     .result-row {
@@ -338,8 +394,10 @@
     }
     .page { padding: 20px 16px 32px; }
     .action-row { flex-wrap: wrap; }
+    .farm-grid, .inputs-grid { grid-template-columns: 1fr; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="page">
@@ -347,9 +405,29 @@
   <div class="page-header">
     <div class="eyebrow">Soil Health Tool</div>
     <h1 class="page-title">PLFA Soil Health <em>Interpreter</em></h1>
-    <p class="page-sub">Enter your PLFA (Phospholipid Fatty Acid) analysis results to see how each indicator compares to standard ranges and what it means for your soil's microbial community.</p>
+    <p class="page-sub">Enter PLFA (Phospholipid Fatty Acid) results, interpret microbial indicators, and download a clean PDF report for farm records or producer review.</p>
   </div>
 
+
+  <div class="farm-card">
+    <div class="section-title">Farm Details</div>
+    <div class="farm-grid">
+      <div class="field">
+        <label class="field-label" for="farm_name">Farm / Operation</label>
+        <input type="text" id="farm_name" placeholder="e.g. Green Valley Farm">
+      </div>
+      <div class="field">
+        <label class="field-label" for="field_name">Field / Sample ID</label>
+        <input type="text" id="field_name" placeholder="e.g. North 40">
+      </div>
+      <div class="field">
+        <label class="field-label" for="sample_date">Sample Date</label>
+        <input type="date" id="sample_date">
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">PLFA Results</div>
   <div class="inputs-grid">
     <div class="field">
       <label class="field-label" for="inp_tmb">Total Microbial Biomass</label>
@@ -383,7 +461,10 @@
       Interpret Results
     </button>
     <button class="btn-reset" id="btnReset">Clear</button>
+    <button class="btn-pdf" id="btnPdf">Download PDF Report</button>
   </div>
+
+  <p class="notice" id="pdfNotice">PDF report is ready after results are interpreted.</p>
 
   <div class="legend" id="legendRow" style="display:none;">
     <span class="legend-label">Range:</span>
@@ -396,17 +477,7 @@
 
   <div class="results-panel" id="resultsPanel"></div>
 
-  <div class="summary-card" id="summaryCard">
-    <div class="summary-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2v20"/><path d="M12 12C8 12 4 8 4 4c4 0 8 4 8 8z"/><path d="M12 14c4 0 8-4 8-8-4 0-8 4-8 8z"/>
-      </svg>
-    </div>
-    <div class="summary-body">
-      <div class="summary-label">Regenerative Insight</div>
-      <p class="summary-text" id="summaryText"></p>
-    </div>
-  </div>
+
 
 </div>
 
@@ -577,34 +648,10 @@ function buildRow(indicator, rawVal) {
   return { row, bandKey, indicator };
 }
 
-function buildSummary(results) {
-  const entered = results.filter(r => r.bandKey !== null);
-  if (entered.length === 0) return null;
-
-  const counts = {};
-  for (const bk of bandOrder) counts[bk] = 0;
-  for (const r of entered) counts[r.bandKey]++;
-
-  const lowCount  = counts.low + counts.below;
-  const highCount = counts.above + counts.high;
-  const weakest   = results.find(r => r.bandKey === 'low') || results.find(r => r.bandKey === 'below');
-  const strongest = results.find(r => r.bandKey === 'high') || results.find(r => r.bandKey === 'above');
-
-  if (lowCount > highCount + counts.avg) {
-    return `Your PLFA results indicate a microbial community that is significantly underdeveloped. Prioritize reducing soil disturbance, keeping living roots in the ground year-round, and introducing diverse cover crop mixes to feed a broader range of microbial functional groups. Biological recovery is possible — it starts with protecting what's there and feeding it consistently.`;
-  } else if (lowCount === 0 && highCount >= entered.length - 1) {
-    return `Outstanding microbial community across the board. Your PLFA profile reflects a highly diverse, abundant, and functionally active soil food web. The regenerative practices driving these results are working — continue building on this biological foundation.`;
-  } else if (highCount >= lowCount) {
-    return `Your soil microbial community is performing well overall. ${strongest ? `Strong ${strongest.indicator.name} is a real asset to your system. ` : ''}${weakest ? `Directing additional focus to ${weakest.indicator.name} will help round out your microbial profile.` : 'Keep layering regenerative practices to maintain momentum.'}`;
-  } else {
-    return `A mixed microbial profile with clear opportunity. ${weakest ? `${weakest.indicator.name} stands out as a priority area. ` : ''}Improving microbial biomass and diversity often requires a systems approach — diverse plants, reduced disturbance, and consistent organic inputs working together over multiple seasons.`;
-  }
-}
-
 function analyze() {
   const panel       = document.getElementById('resultsPanel');
-  const summaryCard = document.getElementById('summaryCard');
-  const summaryText = document.getElementById('summaryText');
+  const pdfButton   = document.getElementById('btnPdf');
+  const pdfNotice   = document.getElementById('pdfNotice');
   const legendRow   = document.getElementById('legendRow');
 
   panel.innerHTML = '';
@@ -623,16 +670,10 @@ function analyze() {
     resultData.push({ indicator, bandKey });
   }
 
-  const summary = buildSummary(resultData);
   panel.classList.add('visible');
   legendRow.style.display = 'flex';
-
-  if (summary) {
-    summaryText.textContent = summary;
-    summaryCard.classList.add('visible');
-  } else {
-    summaryCard.classList.remove('visible');
-  }
+  pdfButton.classList.add('visible');
+  pdfNotice.classList.add('visible');
 
   panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -645,12 +686,131 @@ function resetAll() {
   const panel = document.getElementById('resultsPanel');
   panel.classList.remove('visible');
   panel.innerHTML = '';
-  document.getElementById('summaryCard').classList.remove('visible');
   document.getElementById('legendRow').style.display = 'none';
+  document.getElementById('btnPdf').classList.remove('visible');
+  document.getElementById('pdfNotice').classList.remove('visible');
+}
+
+
+function getReportRows() {
+  return INDICATORS.map(ind => {
+    const input = document.getElementById('inp_' + ind.id);
+    const raw = input ? input.value.trim() : '';
+    const hasValue = raw !== '' && !isNaN(raw);
+    const value = hasValue ? parseFloat(raw) : null;
+    const bandKey = hasValue ? classifyValue(ind, value) : null;
+    return {
+      indicator: ind.name,
+      unit: ind.unit || '',
+      value: hasValue ? (value % 1 === 0 ? String(value) : String(parseFloat(value.toFixed(3)))) : 'Not entered',
+      range: bandKey ? bandLabels[bandKey] : 'Not entered',
+      interpretation: bandKey ? ind.insights[bandKey] : ''
+    };
+  });
+}
+
+function getFarmDetails() {
+  return {
+    farm: document.getElementById('farm_name').value.trim() || 'Not provided',
+    field: document.getElementById('field_name').value.trim() || 'Not provided',
+    date: document.getElementById('sample_date').value || 'Not provided'
+  };
+}
+
+function downloadPdfReport() {
+  analyze();
+
+  const jspdf = window.jspdf;
+  if (!jspdf || !jspdf.jsPDF) {
+    alert('PDF library did not load. Check your internet connection or allow the jsPDF CDN.');
+    return;
+  }
+
+  const { jsPDF } = jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const margin = 46;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const maxWidth = pageWidth - margin * 2;
+  let y = 48;
+
+  const farm = getFarmDetails();
+  const rows = getReportRows();
+  const today = new Date().toLocaleDateString();
+
+  function addPageIfNeeded(extra = 60) {
+    if (y + extra > pageHeight - 46) {
+      doc.addPage();
+      y = 48;
+    }
+  }
+
+  function line(text, size = 10, style = 'normal', color = [28, 26, 22], spacing = 14) {
+    addPageIfNeeded(spacing + 8);
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+    doc.setTextColor(color[0], color[1], color[2]);
+    const parts = doc.splitTextToSize(text, maxWidth);
+    doc.text(parts, margin, y);
+    y += parts.length * spacing;
+  }
+
+  doc.setFillColor(43, 64, 40);
+  doc.rect(0, 0, pageWidth, 88, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(19);
+  doc.text('SCI PLFA Soil Health Report', margin, 42);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text('Generated ' + today, margin, 62);
+  y = 116;
+
+  line('Farm Details', 12, 'bold', [168, 85, 31], 16);
+  line('Farm / Operation: ' + farm.farm, 10);
+  line('Field / Sample ID: ' + farm.field, 10);
+  line('Sample Date: ' + farm.date, 10);
+  y += 8;
+
+  line('PLFA Indicator Results', 12, 'bold', [168, 85, 31], 16);
+
+  rows.forEach(row => {
+    addPageIfNeeded(86);
+    doc.setDrawColor(217, 206, 181);
+    doc.setFillColor(250, 250, 248);
+    doc.roundedRect(margin, y, maxWidth, 74, 6, 6, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(61, 47, 30);
+    doc.text(row.indicator + (row.unit ? ' (' + row.unit + ')' : ''), margin + 14, y + 20);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(28, 26, 22);
+    doc.text('Value: ' + row.value, margin + 14, y + 38);
+    doc.text('Range: ' + row.range, margin + 145, y + 38);
+
+    if (row.interpretation) {
+      const interp = doc.splitTextToSize(row.interpretation, maxWidth - 28);
+      doc.setTextColor(107, 100, 88);
+      doc.text(interp.slice(0, 2), margin + 14, y + 56);
+    }
+    y += 86;
+  });
+
+  addPageIfNeeded(70);
+  y += 8;
+  line('Note: This report is an interpretation aid for PLFA indicators and should be reviewed alongside soil test results, field history, crop goals, and local agronomic context.', 9, 'normal', [107, 100, 88], 12);
+
+  const safeFarm = farm.farm.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'PLFA';
+  const safeField = farm.field.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'Report';
+  doc.save(`${safeFarm}-${safeField}-PLFA-Soil-Health-Report.pdf`);
 }
 
 document.getElementById('btnAnalyze').addEventListener('click', analyze);
 document.getElementById('btnReset').addEventListener('click', resetAll);
+document.getElementById('btnPdf').addEventListener('click', downloadPdfReport);
 document.addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
 </script>
 </body>
