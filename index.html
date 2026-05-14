@@ -427,6 +427,14 @@
         <label class="field-label" for="sample_date">Sample Date</label>
         <input type="date" id="sample_date">
       </div>
+      <div class="field">
+        <label class="field-label" for="sample_depth_from">Sample Depth From (in)</label>
+        <input type="number" id="sample_depth_from" placeholder="e.g. 0" step="0.1" min="0">
+      </div>
+      <div class="field">
+        <label class="field-label" for="sample_depth_to">Depth To (in)</label>
+        <input type="number" id="sample_depth_to" placeholder="e.g. 6" step="0.1" min="0">
+      </div>
     </div>
   </div>
 
@@ -686,6 +694,10 @@ function resetAll() {
     const input = document.getElementById('inp_' + ind.id);
     if (input) input.value = '';
   });
+  ['farm_name', 'field_name', 'sample_date', 'sample_depth_from', 'sample_depth_to'].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.value = '';
+  });
   const panel = document.getElementById('resultsPanel');
   panel.classList.remove('visible');
   panel.innerHTML = '';
@@ -716,7 +728,9 @@ function getFarmDetails() {
   return {
     farm: document.getElementById('farm_name').value.trim() || 'Not provided',
     field: document.getElementById('field_name').value.trim() || 'Not provided',
-    date: document.getElementById('sample_date').value || 'Not provided'
+    date: document.getElementById('sample_date').value || 'Not provided',
+    depthFrom: document.getElementById('sample_depth_from').value.trim() || 'Not provided',
+    depthTo: document.getElementById('sample_depth_to').value.trim() || 'Not provided'
   };
 }
 
@@ -803,6 +817,8 @@ function downloadPdfReport() {
   line('Farm / Operation: ' + farm.farm, 10);
   line('Field / Sample ID: ' + farm.field, 10);
   line('Sample Date: ' + farm.date, 10);
+  line('Sample Depth From (in): ' + farm.depthFrom, 10);
+  line('Depth To (in): ' + farm.depthTo, 10);
   y += 8;
 
   line('PLFA Indicator Results', 12, 'bold', [168, 85, 31], 16);
